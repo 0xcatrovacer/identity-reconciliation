@@ -3,7 +3,7 @@ import pool from "../database/dbConnection";
 
 export interface Contact {
     id: number;
-    phoneNumber: string;
+    phoneNumber: number;
     email: string;
     linkedId: number;
     linkPrecedence: "secondary" | "primary";
