@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
     Contact,
+    createNewContact,
     fetchAllContactsByPhoneNumberAndEmail,
 } from "../models/contact";
 
@@ -17,6 +18,14 @@ export const identify = async (req: Request, res: Response) => {
 
         let relatedContacts: Contact[] =
             await fetchAllContactsByPhoneNumberAndEmail(phoneNumber, email);
+
+        if (relatedContacts.length === 0) {
+            let createdContact: Contact = await createNewContact(
+                phoneNumber,
+                email
+            );
+            relatedContacts.push(createdContact);
+        }
 
         let emails: string[] = [];
         let phoneNumbers: string[] = [];

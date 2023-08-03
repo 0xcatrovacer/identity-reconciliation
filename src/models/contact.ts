@@ -13,7 +13,7 @@ export interface Contact {
 }
 
 export const fetchAllContactsByPhoneNumberAndEmail = async (
-    phoneNumber: number,
+    phoneNumber: string,
     email: string
 ): Promise<Contact[]> => {
     const client: PoolClient = await pool.connect();
@@ -31,6 +31,10 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
 
     const result = await client.query(sqlQuery);
     const rows: Contact[] = result.rows;
+
+    if (rows.length == 0) {
+        return [];
+    }
 
     contacts.push(...rows);
 
@@ -65,4 +69,19 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
     client.release();
 
     return contacts;
+};
+
+export const createNewContact = async (
+    phoneNumber: string,
+    email: string
+): Promise<Contact> => {
+    const client: PoolClient = await pool.connect();
+
+    const insertQuery = `INSERT INTO public.contact(id, "phoneNumber", email, "linkPrecedence", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
+    const values = [4, phoneNumber, email, "primary", new Date(), new Date()];
+
+    const { rows } = await client.query(insertQuery, values);
+    const contact: Contact = rows[0];
+
+    return contact;
 };
