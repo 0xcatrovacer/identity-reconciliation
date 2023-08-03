@@ -1,4 +1,4 @@
-import express, { Application } from "express";
+import express, { Application, Request, Response } from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import identityRouter from "./routers/identityRouters";
@@ -8,6 +8,10 @@ const port = process.env.PORT || 8000;
 
 app.use(bodyParser.json());
 app.use(cors());
+
+app.get("/test", (req: Request, res: Response) => {
+    res.send({ status: "ok" });
+});
 
 app.use(identityRouter);
 
