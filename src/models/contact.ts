@@ -20,6 +20,45 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
 
     let contacts: Contact[] = [];
 
+    if (phoneNumber && email) {
+        let sqlQuery = `SELECT * FROM public.contact WHERE email='${email}' AND "phoneNumber"='${phoneNumber}'`;
+        let { rows } = await client.query(sqlQuery);
+
+        if (rows.length === 0) {
+            let primaryContactQuery = `SELECT * FROM public.contact WHERE email='${email}' OR "phoneNumber"='${phoneNumber}'`;
+
+            let primaryContactResult = await client.query(primaryContactQuery);
+
+            let primaryContactArray: Contact[] =
+                primaryContactResult.rows.filter(
+                    (contact: Contact) => contact.linkPrecedence === "primary"
+                );
+
+            let primaryContact: Contact;
+
+            if (primaryContactArray.length === 0) {
+                let idLinkedContacts: Contact[] =
+                    primaryContactResult.rows.filter(
+                        (contact: Contact) => contact.linkedId !== null
+                    );
+
+                let newQuery = `SELECT * FROM public.contact WHERE id='${idLinkedContacts[0].linkedId}' AND "linkPrecedence"='primary'`;
+
+                const newRes = await client.query(newQuery);
+                primaryContact = newRes.rows[0];
+            } else {
+                primaryContact = primaryContactArray[0];
+            }
+
+            await createNewContact(
+                phoneNumber,
+                email,
+                "secondary",
+                primaryContact.id
+            );
+        }
+    }
+
     let sqlQuery: string;
     if (!phoneNumber) {
         sqlQuery = `SELECT * FROM public.contact WHERE email='${email}'`;
@@ -73,12 +112,24 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
 
 export const createNewContact = async (
     phoneNumber: string,
-    email: string
+    email: string,
+    linkPrecedence: "primary" | "secondary",
+    linkedId?: number
 ): Promise<Contact> => {
     const client: PoolClient = await pool.connect();
 
-    const insertQuery = `INSERT INTO public.contact(id, "phoneNumber", email, "linkPrecedence", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;`;
-    const values = [4, phoneNumber, email, "primary", new Date(), new Date()];
+    const insertQuery = `INSERT INTO public.contact(id, "phoneNumber", email, "linkPrecedence", "createdAt", "updatedAt"${
+        linkedId && ', "linkedId"'
+    }) VALUES ($1, $2, $3, $4, $5, $6${linkedId && ", $7"}) RETURNING *;`;
+    const values = [
+        19,
+        phoneNumber,
+        email,
+        linkPrecedence,
+        new Date(),
+        new Date(),
+        linkedId,
+    ];
 
     const { rows } = await client.query(insertQuery, values);
     const contact: Contact = rows[0];

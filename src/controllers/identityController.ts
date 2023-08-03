@@ -22,7 +22,8 @@ export const identify = async (req: Request, res: Response) => {
         if (relatedContacts.length === 0) {
             let createdContact: Contact = await createNewContact(
                 phoneNumber,
-                email
+                email,
+                "primary"
             );
             relatedContacts.push(createdContact);
         }
@@ -42,8 +43,13 @@ export const identify = async (req: Request, res: Response) => {
             if (contact.linkPrecedence === "primary") {
                 contactResponse["primaryContactId"] = contact.id;
 
-                contact.email && emails.push(contact.email);
-                contact.phoneNumber && phoneNumbers.push(contact.phoneNumber);
+                contact.email &&
+                    !emails.includes(contact.email) &&
+                    emails.push(contact.email);
+
+                contact.phoneNumber &&
+                    !phoneNumbers.includes(contact.phoneNumber) &&
+                    phoneNumbers.push(contact.phoneNumber);
             } else if (contact.linkPrecedence === "secondary") {
                 !secondaryContactIds.includes(contact.id) &&
                     secondaryContactIds.push(contact.id);
