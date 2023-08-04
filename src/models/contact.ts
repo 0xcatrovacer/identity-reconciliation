@@ -98,12 +98,19 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
         return contacts;
     }
 
-    let primaryContactsSQLQuery = `SELECT * FROM public.contact WHERE id='${contacts[0].linkedId}'`;
+    let primaryContactsSQLQuery = `SELECT * FROM public.contact WHERE id='${contacts[0].linkedId}' AND "linkPrecedence"='primary'`;
 
-    const newResult = await client.query(primaryContactsSQLQuery);
-    const newRows: Contact[] = newResult.rows;
+    const newPrimaryResult = await client.query(primaryContactsSQLQuery);
+    const newPrimaryRow: Contact = newPrimaryResult.rows[0];
 
-    contacts.push(...newRows);
+    contacts.push(newPrimaryRow);
+
+    let secondaryContactsSQLQuery = `SELECT * FROM public.contact WHERE "linkedId"='${newPrimaryRow.id}' AND "linkPrecedence"='secondary'`;
+
+    const newSecondaryResult = await client.query(secondaryContactsSQLQuery);
+    const newSecondayRows: Contact[] = newSecondaryResult.rows;
+
+    contacts.push(...newSecondayRows);
 
     client.release();
 
