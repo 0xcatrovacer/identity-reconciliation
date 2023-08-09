@@ -29,49 +29,52 @@ export const fetchAllContactsByPhoneNumberAndEmail = async (
 
             let primaryContactResult = await client.query(primaryContactQuery);
 
-            let primaryContactArray: Contact[] =
-                primaryContactResult.rows.filter(
-                    (contact: Contact) => contact.linkPrecedence === "primary"
-                );
+            if (primaryContactResult.rowCount !== 0) {
+                let primaryContactArray: Contact[] =
+                    primaryContactResult.rows.filter(
+                        (contact: Contact) =>
+                            contact.linkPrecedence === "primary"
+                    );
 
-            if (primaryContactArray.length > 1) {
-                let ogPrimaryContact: Contact = primaryContactArray[0];
-                let newSecondaryContact: Contact = primaryContactArray[1];
+                if (primaryContactArray.length > 1) {
+                    let ogPrimaryContact: Contact = primaryContactArray[0];
+                    let newSecondaryContact: Contact = primaryContactArray[1];
 
-                const updateDate = new Date();
-                const isoString = updateDate.toISOString();
-                const postgresTimestamp = isoString
-                    .replace("T", " ")
-                    .slice(0, 19);
+                    const updateDate = new Date();
+                    const isoString = updateDate.toISOString();
+                    const postgresTimestamp = isoString
+                        .replace("T", " ")
+                        .slice(0, 19);
 
-                let newSecondaryContactUpdateQuery = `UPDATE public.contact SET "linkedId"='${ogPrimaryContact.id}', "linkPrecedence"='secondary', "updatedAt"='${postgresTimestamp}' WHERE id='${newSecondaryContact.id}'`;
+                    let newSecondaryContactUpdateQuery = `UPDATE public.contact SET "linkedId"='${ogPrimaryContact.id}', "linkPrecedence"='secondary', "updatedAt"='${postgresTimestamp}' WHERE id='${newSecondaryContact.id}'`;
 
-                await client.query(newSecondaryContactUpdateQuery);
+                    await client.query(newSecondaryContactUpdateQuery);
 
-                primaryContactArray = [ogPrimaryContact];
-            } else {
-                let primaryContact: Contact;
-
-                if (primaryContactArray.length === 0) {
-                    let idLinkedContacts: Contact[] =
-                        primaryContactResult.rows.filter(
-                            (contact: Contact) => contact.linkedId !== null
-                        );
-
-                    let newQuery = `SELECT * FROM public.contact WHERE id='${idLinkedContacts[0].linkedId}' AND "linkPrecedence"='primary'`;
-
-                    const newRes = await client.query(newQuery);
-                    primaryContact = newRes.rows[0];
+                    primaryContactArray = [ogPrimaryContact];
                 } else {
-                    primaryContact = primaryContactArray[0];
-                }
+                    let primaryContact: Contact;
 
-                await createNewContact(
-                    phoneNumber,
-                    email,
-                    "secondary",
-                    primaryContact.id
-                );
+                    if (primaryContactArray.length === 0) {
+                        let idLinkedContacts: Contact[] =
+                            primaryContactResult.rows.filter(
+                                (contact: Contact) => contact.linkedId !== null
+                            );
+
+                        let newQuery = `SELECT * FROM public.contact WHERE id='${idLinkedContacts[0].linkedId}' AND "linkPrecedence"='primary'`;
+
+                        const newRes = await client.query(newQuery);
+                        primaryContact = newRes.rows[0];
+                    } else {
+                        primaryContact = primaryContactArray[0];
+                    }
+
+                    await createNewContact(
+                        phoneNumber,
+                        email,
+                        "secondary",
+                        primaryContact.id
+                    );
+                }
             }
         }
     }
@@ -143,17 +146,30 @@ export const createNewContact = async (
     const client: PoolClient = await pool.connect();
 
     const insertQuery = `INSERT INTO public.contact(id, "phoneNumber", email, "linkPrecedence", "createdAt", "updatedAt"${
-        linkedId && ', "linkedId"'
-    }) VALUES ($1, $2, $3, $4, $5, $6${linkedId && ", $7"}) RETURNING *;`;
-    const values = [
-        Math.floor(Math.random() * 100),
-        phoneNumber,
-        email,
-        linkPrecedence,
-        new Date(),
-        new Date(),
-        linkedId,
-    ];
+        linkedId !== undefined ? ', "linkedId"' : ""
+    }) VALUES ($1, $2, $3, $4, $5, $6${
+        linkedId !== undefined ? ", $7" : ""
+    }) RETURNING *;`;
+
+    const values =
+        linkedId !== undefined
+            ? [
+                  Math.floor(Math.random() * 100),
+                  phoneNumber,
+                  email,
+                  linkPrecedence,
+                  new Date(),
+                  new Date(),
+                  linkedId,
+              ]
+            : [
+                  Math.floor(Math.random() * 100),
+                  phoneNumber,
+                  email,
+                  linkPrecedence,
+                  new Date(),
+                  new Date(),
+              ];
 
     const { rows } = await client.query(insertQuery, values);
     const contact: Contact = rows[0];
